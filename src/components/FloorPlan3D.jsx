@@ -2,6 +2,7 @@ import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
+import { buildRenderPlan } from "../utils/floorPlanLayout";
 
 const ROOM_COLORS = {
   Bedroom: 0x1f2933,
@@ -219,6 +220,70 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
     createWall(scene, 0, 0, floorLength, WALL_HEIGHT, outerWallMat, "vertical", 4);
     // East outer wall
     createWall(scene, floorWidth, 0, floorLength, WALL_HEIGHT, outerWallMat, "vertical", 4);
+
+    // Windows and doors (positions derived from the same layout logic as 2D)
+    const { windows, doors } = buildRenderPlan(rooms, floorWidth, floorLength);
+
+    const WIN_H = WALL_HEIGHT * 0.4;
+    const WIN_CENTER_Y = WALL_HEIGHT * 0.55;
+    const DOOR_H = WALL_HEIGHT * 0.78;
+
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0x7dd3fc,
+      transparent: true,
+      opacity: 0.65,
+      metalness: 0.6,
+      roughness: 0.05,
+      side: THREE.DoubleSide
+    });
+
+    windows.forEach((win) => {
+      const isVerticalWall = win.width < win.height;
+      const geom = isVerticalWall
+        ? new THREE.BoxGeometry(4, WIN_H, win.height)
+        : new THREE.BoxGeometry(win.width, WIN_H, 4);
+      const mesh = new THREE.Mesh(geom, glassMat);
+      mesh.position.set(win.x + win.width / 2, WIN_CENTER_Y, win.y + win.height / 2);
+      scene.add(mesh);
+
+      // Thin dark frame around the glass
+      const frameGeom = isVerticalWall
+        ? new THREE.BoxGeometry(4.5, WIN_H + 2, win.height + 2)
+        : new THREE.BoxGeometry(win.width + 2, WIN_H + 2, 4.5);
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+      const frameMesh = new THREE.Mesh(frameGeom, frameMat);
+      frameMesh.position.copy(mesh.position);
+      scene.add(frameMesh);
+      scene.add(mesh); // re-add glass on top of frame
+    });
+
+    const doorMat = new THREE.MeshStandardMaterial({
+      color: 0x92400e,
+      roughness: 0.85,
+      metalness: 0.05
+    });
+
+    doors.forEach((door) => {
+      const span = door.orientation === "vertical" ? door.height : door.width;
+      const geom = door.orientation === "vertical"
+        ? new THREE.BoxGeometry(4, DOOR_H, span)
+        : new THREE.BoxGeometry(span, DOOR_H, 4);
+      const mesh = new THREE.Mesh(geom, doorMat);
+      mesh.position.set(door.x, DOOR_H / 2, door.y);
+      mesh.castShadow = true;
+      scene.add(mesh);
+
+      // Door frame (slightly larger dark box behind the panel)
+      const frameSpan = span + 3;
+      const frameGeom = door.orientation === "vertical"
+        ? new THREE.BoxGeometry(5, DOOR_H + 1.5, frameSpan)
+        : new THREE.BoxGeometry(frameSpan, DOOR_H + 1.5, 5);
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+      const frameMesh = new THREE.Mesh(frameGeom, frameMat);
+      frameMesh.position.copy(mesh.position);
+      scene.add(frameMesh);
+      scene.add(mesh); // re-add door panel in front of frame
+    });
 
     // Entrance marker
     if (entrance) {
