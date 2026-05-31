@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🌟 Global Styles */
+html, body {
+  scroll-behavior: smooth;
+  /* Dark, moody background diya hai taaki glass effect zyada dikhe */
+  background: radial-gradient(circle at 50% 50%, #1a2a3a 0%, #0d1721 100%); 
+  color: #12f163; /* Text color */
+}
+
+/* ============================= */
+/* 🧊 Glassmorphism Card */
+/* ============================= */
+/* Main Card Container jo background ko blur karta hai */
+.glass-card {
+  /* Tailwind classes, thoda dark aur zyada blur */
+  @apply bg-white/5 shadow-2xl rounded-3xl relative overflow-hidden; 
+  
+  /* Main Glass Blur Property */
+  backdrop-filter: blur(14px); /* Blur ki intensity badhai */
+  -webkit-backdrop-filter: blur(14px);
+  
+  /* Halka, light border */
+  border: 1px solid rgba(255, 255, 255, 0.15); 
+}
+
+/* ============================= */
+/* 🌧️ Droplets Animation (Realistic Streak) */
+/* Aapka "blur clear" hone ka illusion isse banega */
+/* ============================= */
+.droplet {
+  position: absolute;
+  width: 3px; /* Rasta patla kiya */
+  height: 20px; /* Lambi streak/poochh banayi */
+  background: linear-gradient(
+      to bottom, 
+      rgba(255, 255, 255, 0.8), /* Top par zyada clear/bright */
+      rgba(255, 255, 255, 0)    /* Bottom par transparent */
+  );
+  border-radius: 100%;
+  animation: drop 5s linear infinite; 
+  z-index: 100; 
+  pointer-events: none;
+}
+
+.droplet.delay-1 { left: 25%; animation-delay: 2s; }
+.droplet.delay-2 { left: 60%; animation-delay: 1s; }
+.droplet.delay-3 { left: 40%; animation-delay: 1s; animation-duration: 4s; }
+.droplet.delay-4 { left: 75%; animation-delay: 0s; animation-duration: 60s; }
+.droplet.delay-1 { left: 35%; animation-delay: 2s; }
+.droplet.delay-1 { left: 45%; animation-delay: 1s; }
+.droplet.delay-1 { left: 55%; animation-delay: 2s; }
+.droplet.delay-1 { left: 65%; animation-delay: 0s; }
+.droplet.delay-1 { left: 95%; animation-delay: 2s; }
+.droplet.delay-1 { left: 25%; animation-delay: 1s; }
+.droplet.delay-1 { left: 98%; animation-delay: 2s; }
+
+
+
+@keyframes drop {
+  0% {
+    top: -100%;
+    transform: scaleY(0.1);
+    opacity: 0.5;
+  }
+  30% {
+    opacity: 10;
+    transform: scaleY(1);
+  }
+  100% {
+    top: 150%; 
+    opacity: 10;
+    transform: scaleY(0.5);
+  }
+}
+
+/* ============================= */
+/* ☔ Subtle Animated Rain Overlay (Side ki baarish) */
+/* ============================= */
+.rain-overlay {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.18) 0px, /* Opacity badhai */
+    rgba(255, 255, 255, 0.18) 2px,
+    transparent 0px,
+    transparent 12px
+  );
+  animation: rain-fall 0.4s linear infinite; /* Animation fast ki */
+  opacity: 0.35; 
+  pointer-events: none;
+}
+
+@keyframes rain-fall {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 12px; }
+}
+
+/* 🌫️ Fog Layer (Optional extra softness) */
+.fog-layer {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 10%, rgba(255,255,255,0.2), transparent 70%),
+    radial-gradient(circle at 70% 90%, rgba(255,255,255,0.15), transparent 70%);
+  filter: blur(12px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+
+.input {
+  @apply w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-white/40;
+}
+
+.eye-btn {
+  @apply absolute inset-y-0 right-3 text-xl text-white/70;
+}
+
+.btn-primary {
+  @apply py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 text-white font-semibold hover:opacity-90 transition-all;
+}
+
+.btn-google {
+  @apply py-3 rounded-xl bg-gradient-to-r from-red-400 to-pink-500 text-white font-semibold hover:opacity-90 transition-all;
+}
