@@ -36,6 +36,38 @@ function rectsOverlap(a, b) {
   return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.length <= b.y || b.y + b.length <= a.y);
 }
 
+function getEntranceDoorArc(entrance, floorWidth, floorLength) {
+  if (!entrance) return null;
+  const W = 32;
+  const { x, y } = entrance;
+  const walls = [
+    { id: "north", d: y },
+    { id: "south", d: floorLength - y },
+    { id: "west",  d: x },
+    { id: "east",  d: floorWidth - x },
+  ];
+  const { id } = walls.reduce((a, b) => (a.d < b.d ? a : b));
+  switch (id) {
+    case "north": {
+      const hx = x - W / 2;
+      return { line: [hx, 0, hx + W, 0], open: [hx, 0, hx, W], arc: `M ${hx + W} 0 A ${W} ${W} 0 0 1 ${hx} ${W}` };
+    }
+    case "south": {
+      const hx = x - W / 2, wy = floorLength;
+      return { line: [hx, wy, hx + W, wy], open: [hx, wy, hx, wy - W], arc: `M ${hx + W} ${wy} A ${W} ${W} 0 0 0 ${hx} ${wy - W}` };
+    }
+    case "west": {
+      const hy = y - W / 2;
+      return { line: [0, hy, 0, hy + W], open: [0, hy, W, hy], arc: `M 0 ${hy + W} A ${W} ${W} 0 0 0 ${W} ${hy}` };
+    }
+    case "east": {
+      const hy = y - W / 2, wx = floorWidth;
+      return { line: [wx, hy, wx, hy + W], open: [wx, hy, wx - W, hy], arc: `M ${wx} ${hy + W} A ${W} ${W} 0 0 1 ${wx - W} ${hy}` };
+    }
+    default: return null;
+  }
+}
+
 function findSnapped(value, lines) {
   let closest = value;
   let best = SNAP_RADIUS + 1;
@@ -304,32 +336,45 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
             />
           ))}
 
-          {entrance && (
-            <g
-              className="entrance-point"
-              onPointerDown={(event) => startDrag(event, entrance, "entrance")}
-              style={{ cursor: "grab" }}
-            >
-              <circle
-                cx={entrance.x}
-                cy={entrance.y}
-                r={entrance.radius}
-                fill="#fbbf24"
-                fillOpacity="0.92"
-                stroke="#f59e0b"
-                strokeWidth="2"
-              />
-              <text
-                x={entrance.x}
-                y={entrance.y - entrance.radius - 6}
-                fill="#e2e8f0"
-                fontSize="10"
-                textAnchor="middle"
+          {entrance && (() => {
+            const eDoor = getEntranceDoorArc(entrance, floor.width, floor.length);
+            return (
+              <g
+                className="entrance-point"
+                onPointerDown={(event) => startDrag(event, entrance, "entrance")}
+                style={{ cursor: "grab" }}
               >
-                Entrance
-              </text>
-            </g>
-          )}
+                {eDoor && (
+                  <>
+                    {/* door panel line on the wall */}
+                    <line x1={eDoor.line[0]} y1={eDoor.line[1]} x2={eDoor.line[2]} y2={eDoor.line[3]} stroke="#fbbf24" strokeWidth="5" strokeLinecap="butt" />
+                    {/* door open position line */}
+                    <line x1={eDoor.open[0]} y1={eDoor.open[1]} x2={eDoor.open[2]} y2={eDoor.open[3]} stroke="#fbbf24" strokeWidth="2" />
+                    {/* door swing arc */}
+                    <path d={eDoor.arc} fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeDasharray="4 3" opacity="0.85" />
+                  </>
+                )}
+                <circle
+                  cx={entrance.x}
+                  cy={entrance.y}
+                  r={entrance.radius}
+                  fill="#fbbf24"
+                  fillOpacity="0.92"
+                  stroke="#f59e0b"
+                  strokeWidth="2"
+                />
+                <text
+                  x={entrance.x}
+                  y={entrance.y - entrance.radius - 6}
+                  fill="#e2e8f0"
+                  fontSize="10"
+                  textAnchor="middle"
+                >
+                  Entrance
+                </text>
+              </g>
+            );
+          })()}
 
           {rooms.map((room) => {
             const fill = ROOM_COLORS[room.type] || "#64748b";
@@ -347,6 +392,21 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
                   strokeWidth="1.8"
                   rx="8"
                 />
+                {room.type === "Bedroom" && (() => {
+                  const bw = Math.min(room.width * 0.52, 72);
+                  const bl = Math.min(room.length * 0.55, 80);
+                  const bx = room.x + room.width / 2 - bw / 2;
+                  const by = room.y + room.length / 2 - bl / 2 + 10;
+                  return (
+                    <g opacity="0.8">
+                      <rect x={bx} y={by} width={bw} height={bl} fill="#475569" fillOpacity="0.55" rx="3" />
+                      <rect x={bx} y={by} width={bw} height={bl * 0.18} fill="#334155" fillOpacity="0.9" rx="3" />
+                      <rect x={bx + 2} y={by + bl * 0.21} width={bw - 4} height={bl * 0.74} fill="#64748b" fillOpacity="0.4" rx="2" />
+                      <rect x={bx + bw * 0.08} y={by + bl * 0.03} width={bw * 0.35} height={bl * 0.14} fill="#94a3b8" fillOpacity="0.7" rx="3" />
+                      <rect x={bx + bw * 0.57} y={by + bl * 0.03} width={bw * 0.35} height={bl * 0.14} fill="#94a3b8" fillOpacity="0.7" rx="3" />
+                    </g>
+                  );
+                })()}
                 <text x={room.x + room.width / 2} y={room.y + 24} fill={textFill} fontSize="12" fontWeight="700" textAnchor="middle">
                   {room.label}
                 </text>
