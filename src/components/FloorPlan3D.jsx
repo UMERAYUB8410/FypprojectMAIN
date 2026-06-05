@@ -202,6 +202,44 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
       dimSprite.position.set(room.x + room.width / 2, WALL_HEIGHT / 4, room.y + room.length / 2);
       dimSprite.scale.set(room.width * 0.6, room.width * 0.3, 1);
       scene.add(dimSprite);
+
+      // Bed furniture for bedrooms
+      if (room.type === "Bedroom") {
+        const cx = room.x + room.width / 2;
+        const cz = room.y + room.length / 2 + 5;
+        const bedW = Math.min(room.width * 0.5, 65);
+        const bedL = Math.min(room.length * 0.58, 80);
+
+        const bedFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
+        const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(bedW, 4, bedL), bedFrameMat);
+        bedFrame.position.set(cx, 2.5, cz);
+        bedFrame.castShadow = true;
+        scene.add(bedFrame);
+
+        const mattressMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.95 });
+        const mattress = new THREE.Mesh(new THREE.BoxGeometry(bedW - 3, 3, bedL - 3), mattressMat);
+        mattress.position.set(cx, 6, cz);
+        scene.add(mattress);
+
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+        const headboard = new THREE.Mesh(new THREE.BoxGeometry(bedW, 12, 3), headMat);
+        headboard.position.set(cx, 8, room.y + 5);
+        headboard.castShadow = true;
+        scene.add(headboard);
+
+        const blanketMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
+        const blanket = new THREE.Mesh(new THREE.BoxGeometry(bedW - 6, 1.5, bedL * 0.68), blanketMat);
+        blanket.position.set(cx, 8.2, cz + bedL * 0.05);
+        scene.add(blanket);
+
+        const pillowMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.9 });
+        const pillowGeo = new THREE.BoxGeometry(bedW * 0.38, 2, bedL * 0.12);
+        [-1, 1].forEach((side) => {
+          const pillow = new THREE.Mesh(pillowGeo, pillowMat);
+          pillow.position.set(cx + side * bedW * 0.25, 8.8, room.y + bedL * 0.08 + 5);
+          scene.add(pillow);
+        });
+      }
     });
 
     // Outer walls
@@ -285,7 +323,7 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
       scene.add(mesh); // re-add door panel in front of frame
     });
 
-    // Entrance marker
+    // Entrance marker + door
     if (entrance) {
       const entranceGeom = new THREE.CylinderGeometry(entrance.radius, entrance.radius, 3, 32);
       const entranceMat = new THREE.MeshStandardMaterial({
@@ -298,7 +336,6 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
       entranceMesh.castShadow = true;
       scene.add(entranceMesh);
 
-      // Entrance label
       const entranceLabel = createTextSprite("Entrance", {
         fontSize: 16,
         textColor: "#fbbf24"
@@ -306,6 +343,39 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
       entranceLabel.position.set(entrance.x, 8, entrance.y);
       entranceLabel.scale.set(40, 20, 1);
       scene.add(entranceLabel);
+
+      // Entrance door on the nearest exterior wall
+      const EDW = 34;
+      const EDH = WALL_HEIGHT * 0.78;
+      const wallDists = [
+        { id: "north", d: entrance.y },
+        { id: "south", d: floorLength - entrance.y },
+        { id: "west",  d: entrance.x },
+        { id: "east",  d: floorWidth - entrance.x },
+      ];
+      const nearestWall = wallDists.reduce((a, b) => (a.d < b.d ? a : b)).id;
+      const isNS = nearestWall === "north" || nearestWall === "south";
+      const edDoorX = isNS ? entrance.x : (nearestWall === "west" ? 0 : floorWidth);
+      const edDoorZ = isNS ? (nearestWall === "north" ? 0 : floorLength) : entrance.y;
+
+      const edFrameMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 });
+      const edDoorMat = new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.8 });
+
+      const edFrameGeom = isNS
+        ? new THREE.BoxGeometry(EDW + 4, EDH + 2, 7)
+        : new THREE.BoxGeometry(7, EDH + 2, EDW + 4);
+      const edDoorGeom = isNS
+        ? new THREE.BoxGeometry(EDW, EDH, 5)
+        : new THREE.BoxGeometry(5, EDH, EDW);
+
+      const edFrame = new THREE.Mesh(edFrameGeom, edFrameMat);
+      edFrame.position.set(edDoorX, EDH / 2, edDoorZ);
+      scene.add(edFrame);
+
+      const edDoor = new THREE.Mesh(edDoorGeom, edDoorMat);
+      edDoor.position.set(edDoorX, EDH / 2, edDoorZ);
+      edDoor.castShadow = true;
+      scene.add(edDoor);
     }
 
     // Animation loop
