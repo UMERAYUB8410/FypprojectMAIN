@@ -75,6 +75,8 @@ import Home from "./sections/Home";
 import Explore from "./sections/Explore";
 import About from "./sections/About";
 import Create from "./pages/Create";
+import Profile from "./pages/Profile";
+import History from "./pages/History";
 
 export default function App() {
   const navigate = useNavigate();
@@ -136,6 +138,8 @@ export default function App() {
           }
         />
         <Route path="/create" element={<Create />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/history" element={<History />} />
       </Routes>
 
       <Footer />
