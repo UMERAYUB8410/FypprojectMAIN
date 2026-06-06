@@ -392,6 +392,34 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
                   strokeWidth="1.8"
                   rx="8"
                 />
+                {room.type === "Living" && (() => {
+                  const sw = Math.min(room.width * 0.65, 85);
+                  const sd = Math.min(room.length * 0.22, 26);
+                  const arm = sd * 0.22;
+                  const sx = room.x + room.width / 2 - sw / 2;
+                  const sy = room.y + 28;
+                  const tw = sw * 0.46;
+                  const th = sd * 0.65;
+                  const tx = room.x + room.width / 2 - tw / 2;
+                  const ty = sy + sd + 10;
+                  return (
+                    <g opacity="0.82">
+                      {/* Sofa backrest */}
+                      <rect x={sx} y={sy} width={sw} height={sd * 0.3} fill="#4b5563" fillOpacity="0.8" rx="2" />
+                      {/* Sofa seat */}
+                      <rect x={sx + arm} y={sy + sd * 0.3} width={sw - arm * 2} height={sd * 0.7} fill="#6b7280" fillOpacity="0.6" rx="2" />
+                      {/* Left armrest */}
+                      <rect x={sx} y={sy} width={arm} height={sd} fill="#374151" fillOpacity="0.85" rx="2" />
+                      {/* Right armrest */}
+                      <rect x={sx + sw - arm} y={sy} width={arm} height={sd} fill="#374151" fillOpacity="0.85" rx="2" />
+                      {/* Cushion divider */}
+                      <line x1={room.x + room.width / 2} y1={sy + sd * 0.3} x2={room.x + room.width / 2} y2={sy + sd} stroke="#374151" strokeWidth="0.8" strokeOpacity="0.5" />
+                      {/* Coffee table */}
+                      <rect x={tx} y={ty} width={tw} height={th} fill="#1e293b" fillOpacity="0.55" rx="2" stroke="#475569" strokeWidth="0.8" />
+                    </g>
+                  );
+                })()}
+
                 {room.type === "Bedroom" && (() => {
                   const bw = Math.min(room.width * 0.52, 72);
                   const bl = Math.min(room.length * 0.55, 80);

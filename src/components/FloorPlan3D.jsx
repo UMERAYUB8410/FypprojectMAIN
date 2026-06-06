@@ -240,6 +240,120 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
           scene.add(pillow);
         });
       }
+
+      // Sofa + coffee table for living rooms
+      if (room.type === "Living") {
+        const cx = room.x + room.width / 2;
+        const sofaW = Math.min(room.width * 0.62, 78);
+        const bz = room.y + 5; // sofa base Z (near north wall)
+
+        const seatMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.9 });
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(sofaW - 8, 5, 18), seatMat);
+        seat.position.set(cx, 4.5, bz + 11);
+        seat.castShadow = true;
+        scene.add(seat);
+
+        const backMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.9 });
+        const back = new THREE.Mesh(new THREE.BoxGeometry(sofaW, 12, 4), backMat);
+        back.position.set(cx, 8, bz + 2);
+        back.castShadow = true;
+        scene.add(back);
+
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.9 });
+        [-1, 1].forEach((side) => {
+          const arm = new THREE.Mesh(new THREE.BoxGeometry(4, 9, 22), armMat);
+          arm.position.set(cx + side * (sofaW / 2 - 2), 5.5, bz + 11);
+          scene.add(arm);
+        });
+
+        // Coffee table
+        const tableTopMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.15 });
+        const tableTop = new THREE.Mesh(new THREE.BoxGeometry(sofaW * 0.52, 2, 14), tableTopMat);
+        tableTop.position.set(cx, 7, bz + 34);
+        scene.add(tableTop);
+
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+        const legGeo = new THREE.BoxGeometry(1.5, 7, 1.5);
+        const tw = sofaW * 0.52;
+        [[-tw / 2 + 2, bz + 28], [tw / 2 - 2, bz + 28],
+         [-tw / 2 + 2, bz + 40], [tw / 2 - 2, bz + 40]].forEach(([lx, lz]) => {
+          const leg = new THREE.Mesh(legGeo, legMat);
+          leg.position.set(cx + lx, 3.5, lz);
+          scene.add(leg);
+        });
+      }
+
+      // Dining table + chairs for dining rooms
+      if (room.type === "Dining") {
+        const cx = room.x + room.width / 2;
+        const cz = room.y + room.length / 2;
+        const tableW = Math.min(room.width * 0.6, 70);
+        const tableL = Math.min(room.length * 0.5, 50);
+
+        // Dining table top
+        const tableTopMat = new THREE.MeshStandardMaterial({ 
+          color: 0x92400e, 
+          roughness: 0.3, 
+          metalness: 0.1 
+        });
+        const tableTop = new THREE.Mesh(new THREE.BoxGeometry(tableW, 2, tableL), tableTopMat);
+        tableTop.position.set(cx, 12, cz);
+        tableTop.castShadow = true;
+        scene.add(tableTop);
+
+        // Table legs
+        const tableLegMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
+        const tableLegGeo = new THREE.BoxGeometry(2, 12, 2);
+        [
+          [-tableW / 2 + 3, -tableL / 2 + 3],
+          [tableW / 2 - 3, -tableL / 2 + 3],
+          [-tableW / 2 + 3, tableL / 2 - 3],
+          [tableW / 2 - 3, tableL / 2 - 3]
+        ].forEach(([lx, lz]) => {
+          const leg = new THREE.Mesh(tableLegGeo, tableLegMat);
+          leg.position.set(cx + lx, 6, cz + lz);
+          leg.castShadow = true;
+          scene.add(leg);
+        });
+
+        // Dining chairs
+        const chairSeatMat = new THREE.MeshStandardMaterial({ color: 0x57534e, roughness: 0.8 });
+        const chairBackMat = new THREE.MeshStandardMaterial({ color: 0x44403c, roughness: 0.8 });
+        const chairW = 8;
+        const chairD = 8;
+        const chairH = 5;
+        const backH = 10;
+
+        // Chairs on long sides (2 on each side)
+        const longSidePositions = [
+          { x: cx - tableW / 2 - 6, z: cz - tableL / 4, rot: Math.PI / 2 },
+          { x: cx - tableW / 2 - 6, z: cz + tableL / 4, rot: Math.PI / 2 },
+          { x: cx + tableW / 2 + 6, z: cz - tableL / 4, rot: -Math.PI / 2 },
+          { x: cx + tableW / 2 + 6, z: cz + tableL / 4, rot: -Math.PI / 2 }
+        ];
+
+        // Chairs on short sides (1 on each end)
+        const shortSidePositions = [
+          { x: cx, z: cz - tableL / 2 - 6, rot: 0 },
+          { x: cx, z: cz + tableL / 2 + 6, rot: Math.PI }
+        ];
+
+        [...longSidePositions, ...shortSidePositions].forEach(({ x, z, rot }) => {
+          // Chair seat
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(chairW, chairH, chairD), chairSeatMat);
+          seat.position.set(x, chairH / 2 + 1, z);
+          seat.rotation.y = rot;
+          seat.castShadow = true;
+          scene.add(seat);
+
+          // Chair back
+          const back = new THREE.Mesh(new THREE.BoxGeometry(chairW, backH, 1.5), chairBackMat);
+          back.position.set(x, chairH + backH / 2 + 1, z - chairD / 2 + 0.75);
+          back.rotation.y = rot;
+          back.castShadow = true;
+          scene.add(back);
+        });
+      }
     });
 
     // Outer walls

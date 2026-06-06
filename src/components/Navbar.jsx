@@ -83,7 +83,7 @@ export default function Navbar({ isAuth, setIsAuth, onOpenAuth, onCreate }) {
                 </button>
 
                 {avatarOpen && (
-                  <div className="absolute right-10 mt-2 w-40 bg-white/5 border border-white/20 backdrop-blur-md rounded-lg p-2 z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-white/5 border border-white/20 backdrop-blur-md rounded-lg p-2 z-50">
                     <button
                       onClick={() => {
                         navigate("/profile");
@@ -92,6 +92,15 @@ export default function Navbar({ isAuth, setIsAuth, onOpenAuth, onCreate }) {
                       className="w-full text-left px-3 py-2 rounded hover:bg-white/10"
                     >
                       Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/history");
+                        setAvatarOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-white/10"
+                    >
+                      History
                     </button>
                     <button
                       onClick={() => {
@@ -143,12 +152,26 @@ export default function Navbar({ isAuth, setIsAuth, onOpenAuth, onCreate }) {
             </button>
 
             {isAuth ? (
-              <button
-                onClick={() => { handleLogout(); setOpen(false); }}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white"
-              >
-                Logout
-              </button>
+              <>
+                <button
+                  onClick={() => { navigate("/profile"); setOpen(false); }}
+                  className="px-4 py-2 rounded-lg bg-slate-700 text-white"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => { navigate("/history"); setOpen(false); }}
+                  className="px-4 py-2 rounded-lg bg-slate-700 text-white"
+                >
+                  History
+                </button>
+                <button
+                  onClick={() => { handleLogout(); setOpen(false); }}
+                  className="px-4 py-2 rounded-lg bg-red-500 text-white"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button
                 onClick={() => { onOpenAuth?.(); setOpen(false); }}

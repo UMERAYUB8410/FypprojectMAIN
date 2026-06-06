@@ -118,6 +118,18 @@ import FloorPlan3D from "../components/FloorPlan3D";
 const WALL_PRESETS = ["#94a3b8", "#f8fafc", "#fbbf24", "#22c55e", "#3b82f6", "#ec4899", "#a78bfa", "#78716c"];
 const FLOOR_PRESETS = ["#1a1a2e", "#0f172a", "#1c1917", "#14532d", "#312e81", "#f5f5f4", "#e5e7eb", "#fef3c7"];
 
+const PROMPT_MIN_WORDS = 10;
+
+function validatePrompt(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return "Describe your house to get started.";
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < PROMPT_MIN_WORDS) {
+    return `Too short (${words.length}/${PROMPT_MIN_WORDS} words). Include plot size, floors, bedrooms, and style — e.g. "5 marla double story house with 3 bedrooms, 2 baths, open kitchen and lawn."`;
+  }
+  return null;
+}
+
 export default function Create() {
   const navigate = useNavigate();
 
@@ -152,8 +164,9 @@ export default function Create() {
 
   // 🧠 AI ANALYZE
   async function handleAnalyze() {
-    if (!prompt.trim()) {
-      setError("Please describe your house first.");
+    const validationError = validatePrompt(prompt);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -342,8 +355,25 @@ export default function Create() {
       setFloorPlan(data.plan);
       setSvg(data.svg);
       setModel3D(data.model3D);
+      
+      // Save to history
+      await saveToHistory(nextAnalysis, data.svg, data.plan, data.model3D);
     }
     setIsReflowing(false);
+  }
+
+  async function saveToHistory(analysis, svg, plan, model3D) {
+    try {
+      await api.post("/history/save", {
+        prompt,
+        analysis,
+        svg,
+        plan,
+        model3D
+      });
+    } catch (err) {
+      console.error("Failed to save to history:", err);
+    }
   }
 
   function generate2D() {
@@ -440,6 +470,23 @@ export default function Create() {
               </button>
             </div>
           </div>
+
+          {/* Word count indicator */}
+          {(() => {
+            const wc = prompt.trim() ? prompt.trim().split(/\s+/).filter(Boolean).length : 0;
+            const pct = Math.min(wc / PROMPT_MIN_WORDS, 1);
+            const color = wc === 0 ? "bg-white/10" : wc < PROMPT_MIN_WORDS ? "bg-amber-500" : "bg-green-500";
+            const label = wc === 0 ? "Start typing…" : wc < PROMPT_MIN_WORDS ? `${wc} / ${PROMPT_MIN_WORDS} words` : `${wc} words ✓`;
+            const labelColor = wc === 0 ? "text-slate-500" : wc < PROMPT_MIN_WORDS ? "text-amber-400" : "text-green-400";
+            return (
+              <div className="mt-2">
+                <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct * 100}%` }} />
+                </div>
+                <p className={`text-xs mt-1 text-right ${labelColor}`}>{label}</p>
+              </div>
+            );
+          })()}
 
           {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
 

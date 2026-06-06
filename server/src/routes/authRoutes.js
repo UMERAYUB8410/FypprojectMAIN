@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { sendEmail } from "../services/sendEmail.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -170,6 +171,39 @@ router.post("/reset", async (req, res) => {
     res.json({ message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+/* ======================================================
+   👤 GET CURRENT USER
+====================================================== */
+router.get("/me", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.username,
+        email: user.email,
+        verified: user.verified,
+        googleId: user.googleId,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 

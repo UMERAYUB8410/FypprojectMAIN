@@ -1,9 +1,15 @@
 import express from "express";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
 import session from "express-session";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: resolve(__dirname, ".env") });
 
 import { connectDB } from "./src/config/db.js";
 
@@ -13,8 +19,7 @@ import googleAuthRoutes from "./src/routes/googleAuth.js";
 import aiRoutes from "./src/routes/ai.routes.js";
 import speechRoutes from "./src/routes/speech.routes.js";
 import floorPlanRoutes from "./src/routes/floorPlan.routes.js";
-
-dotenv.config();
+import historyRoutes from "./src/routes/history.routes.js";
 
 const app = express();
 
@@ -61,6 +66,7 @@ app.use("/api/auth", googleAuthRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/speech", speechRoutes);
 app.use("/api/floorplan", floorPlanRoutes);
+app.use("/api/history", historyRoutes);
 
 // -------------------------------
 // 🔹 Health Check (important for viva)
