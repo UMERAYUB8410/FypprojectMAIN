@@ -667,7 +667,10 @@ export default function Create() {
           }`}>
             {/* 2D View */}
             {(viewMode === "2d" || viewMode === "both") && (
-              <div className={viewMode === "both" ? "" : "mx-auto w-full"}>
+              <div
+                className={viewMode === "both" ? "" : "mx-auto w-full"}
+                style={{ height: "620px" }}
+              >
                 <FloorPlan2D
                   ref={floorPlan2DRef}
                   plan={floorPlan}
@@ -681,7 +684,10 @@ export default function Create() {
 
             {/* 3D View */}
             {(viewMode === "3d" || viewMode === "both") && (
-              <div className={`${viewMode === "both" ? "" : "mx-auto w-full"}`} style={{ minHeight: "500px" }}>
+              <div
+                className={viewMode === "both" ? "" : "mx-auto w-full"}
+                style={{ height: "620px" }}
+              >
                 <FloorPlan3D
                   ref={floorPlan3DRef}
                   plan={floorPlan}

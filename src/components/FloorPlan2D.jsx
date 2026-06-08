@@ -280,21 +280,21 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
 
   return (
     <div
-      className="relative rounded-3xl border border-white/10 bg-slate-950/80 p-4"
-      style={{ touchAction: "none", width: "100%", minHeight: "40vh", maxHeight: "65vh", overflow: "auto" }}
+      className="relative rounded-3xl border border-white/10 bg-slate-950/80 p-4 flex flex-col"
+      style={{ touchAction: "none", height: "100%" }}
     >
-      <div className="mb-4 flex flex-col gap-2 text-sm text-slate-300">
+      <div className="mb-2 flex-shrink-0 flex flex-col gap-1 text-sm text-slate-300">
         <div className="font-semibold text-white">Interactive Architectural Floor Plan</div>
         <div className="text-slate-400">Room edges snap to nearby boundaries and adjacent rooms.</div>
         <div className="text-slate-400">Floor dimensions: {totalWidth}' x {totalHeight}'</div>
       </div>
 
+      <div className="flex-1 min-h-0 overflow-hidden">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${floor.width + 120} ${floor.length + 120}`}
-        className="w-full h-full"
         preserveAspectRatio="xMidYMid meet"
-        style={{ width: "100%", height: "100%", maxWidth: "720px", maxHeight: "60vh", display: "block", margin: "0 auto" }}
+        style={{ width: "100%", height: "100%", display: "block" }}
       >
         <defs>
           <linearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
@@ -478,6 +478,7 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
           </g>
         </g>
       </svg>
+      </div>
 
       {invalid && (
         <div className="pointer-events-none absolute left-6 top-6 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-200">
