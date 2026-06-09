@@ -275,8 +275,9 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
     return null;
   }
 
-  const totalWidth = Math.round(floor.width / 10);
-  const totalHeight = Math.round(floor.length / 10);
+  const originalPlot = plan?.plot || null;
+  const totalWidth = originalPlot?.width ? Math.round(originalPlot.width) : Math.round(floor.width / 10);
+  const totalHeight = originalPlot?.length ? Math.round(originalPlot.length) : Math.round(floor.length / 10);
 
   return (
     <div
