@@ -82,13 +82,15 @@ function findSnapped(value, lines) {
 }
 
 
-const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallColor = "#94a3b8", floorColor = "#1a1a2e" }, ref) => {
+const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, roomColors = {} }, ref) => {
   const [rooms, setRooms] = useState(plan?.floors?.[0]?.rooms || []);
   const [entrance, setEntrance] = useState(plan?.floors?.[0]?.entrance || null);
   const [invalid, setInvalid] = useState(false);
   const dragSessionRef = useRef(null);
   const svgRef = useRef(null);
   const floor = plan?.floors?.[0] || null;
+  const defaultWallColor = "#94a3b8";
+  const defaultFloorColor = "#1a1a2e";
 
   useImperativeHandle(ref, () => ({
     downloadSVG: () => {
@@ -143,8 +145,8 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
 
   const renderPlan = useMemo(() => {
     if (!floor) return { walls: [], doors: [], windows: [] };
-    return buildRenderPlan(rooms, floor.width, floor.length, wallColor);
-  }, [rooms, floor, wallColor]);
+    return buildRenderPlan(rooms, floor.width, floor.length, defaultWallColor);
+  }, [rooms, floor, defaultWallColor]);
 
   const snapLines = useMemo(() => {
     const xLines = [ROOM_PADDING, floor ? floor.width - ROOM_PADDING : 0];
@@ -307,7 +309,22 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
         <rect x="0" y="0" width={floor.width + 120} height={floor.length + 120} fill="url(#bgGradient)" />
 
         <g transform="translate(40, 40)">
-          <rect x="0" y="0" width={floor.width} height={floor.length} fill={floorColor} stroke="#64748b" strokeWidth="4" rx="8" />
+          <rect x="0" y="0" width={floor.width} height={floor.length} fill={defaultFloorColor} stroke="#64748b" strokeWidth="4" rx="8" />
+
+          {rooms.map((room) => {
+            const roomColors_ = roomColors[room.roomKey] || { wall: defaultWallColor, floor: defaultFloorColor };
+            return (
+              <rect
+                key={`room-bg-${room.roomKey}`}
+                x={room.x}
+                y={room.y}
+                width={room.width}
+                height={room.length}
+                fill={roomColors_.floor}
+                fillOpacity="0.6"
+              />
+            );
+          })}
 
           {renderPlan.walls.map((wall, index) => (
             <line
@@ -380,6 +397,7 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
           {rooms.map((room) => {
             const fill = ROOM_COLORS[room.type] || "#64748b";
             const textFill = TEXT_COLORS[room.type] || "#ffffff";
+            const roomColors_ = roomColors[room.roomKey] || { wall: defaultWallColor, floor: defaultFloorColor };
             return (
               <g key={room.roomKey} className="room-group" onPointerDown={(event) => startDrag(event, room)} style={{ cursor: "grab" }}>
                 <rect
@@ -389,7 +407,7 @@ const FloorPlan2D = forwardRef(({ plan, onRoomDragEnd, onEntranceDragEnd, wallCo
                   height={room.length}
                   fill={fill}
                   fillOpacity="0.16"
-                  stroke={invalid ? "#f87171" : "#94a3b8"}
+                  stroke={invalid ? "#f87171" : roomColors_.wall}
                   strokeWidth="1.8"
                   rx="8"
                 />
