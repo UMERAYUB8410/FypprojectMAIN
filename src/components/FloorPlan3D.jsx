@@ -19,7 +19,7 @@ const ROOM_COLORS = {
 const WALL_HEIGHT = 40;
 const WALL_THICKNESS = 2;
 
-const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorColor = "#1a1a2e" }, ref) => {
+const FloorPlan3D = forwardRef(({ model3D, plan, roomColors = {} }, ref) => {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -27,12 +27,16 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
   const floorMatRef = useRef(null);
   const wallMatRef = useRef(null);
   const outerWallMatRef = useRef(null);
+  const roomMatsRef = useRef({});
+
+  const defaultWallColor = "#94a3b8";
+  const defaultFloorColor = "#1a1a2e";
 
   // Keep refs in sync so the main effect always reads current colors
-  const wallColorRef = useRef(wallColor);
-  const floorColorRef = useRef(floorColor);
-  wallColorRef.current = wallColor;
-  floorColorRef.current = floorColor;
+  const wallColorRef = useRef(defaultWallColor);
+  const floorColorRef = useRef(defaultFloorColor);
+  wallColorRef.current = defaultWallColor;
+  floorColorRef.current = defaultFloorColor;
 
   useImperativeHandle(ref, () => ({
     downloadGLTF: () => {
@@ -161,14 +165,16 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
 
     // Create rooms
     rooms.forEach((room) => {
+      const roomColors_ = roomColors[room.roomKey] || { wall: defaultWallColor, floor: defaultFloorColor };
+
       // Room floor
       const roomFloorGeom = new THREE.PlaneGeometry(room.width - 2, room.length - 2);
       const roomFloorMat = new THREE.MeshStandardMaterial({
-        color: ROOM_COLORS[room.type] || 0x64748b,
+        color: roomColors_.floor,
         roughness: 0.9,
         metalness: 0.1,
         transparent: true,
-        opacity: 0.4
+        opacity: 0.6
       });
       const roomFloor = new THREE.Mesh(roomFloorGeom, roomFloorMat);
       roomFloor.rotation.x = -Math.PI / 2;
@@ -176,14 +182,25 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
       roomFloor.receiveShadow = true;
       scene.add(roomFloor);
 
+      // Room-specific wall material
+      const roomWallMat = new THREE.MeshStandardMaterial({
+        color: roomColors_.wall,
+        roughness: 0.7,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide
+      });
+      roomMatsRef.current[room.roomKey] = roomWallMat;
+
       // North wall
-      createWall(scene, room.x, room.y, room.width, WALL_HEIGHT, wallMaterial, "horizontal");
+      createWall(scene, room.x, room.y, room.width, WALL_HEIGHT, roomWallMat, "horizontal");
       // South wall
-      createWall(scene, room.x, room.y + room.length, room.width, WALL_HEIGHT, wallMaterial, "horizontal");
+      createWall(scene, room.x, room.y + room.length, room.width, WALL_HEIGHT, roomWallMat, "horizontal");
       // West wall
-      createWall(scene, room.x, room.y, room.length, WALL_HEIGHT, wallMaterial, "vertical");
+      createWall(scene, room.x, room.y, room.length, WALL_HEIGHT, roomWallMat, "vertical");
       // East wall
-      createWall(scene, room.x + room.width, room.y, room.length, WALL_HEIGHT, wallMaterial, "vertical");
+      createWall(scene, room.x + room.width, room.y, room.length, WALL_HEIGHT, roomWallMat, "vertical");
 
       // Room label (3D text sprite)
       const labelSprite = createTextSprite(room.label, {
@@ -534,14 +551,22 @@ const FloorPlan3D = forwardRef(({ model3D, plan, wallColor = "#94a3b8", floorCol
         });
       }
     };
-  }, [plan, model3D]);
+  }, [plan, model3D, roomColors]);
 
   // Reactively update material colors without rebuilding the scene
   useEffect(() => {
-    if (floorMatRef.current) floorMatRef.current.color.set(floorColor);
-    if (wallMatRef.current) wallMatRef.current.color.set(wallColor);
-    if (outerWallMatRef.current) outerWallMatRef.current.color.set(wallColor);
-  }, [wallColor, floorColor]);
+    if (floorMatRef.current) floorMatRef.current.color.set(defaultFloorColor);
+    if (wallMatRef.current) wallMatRef.current.color.set(defaultWallColor);
+    if (outerWallMatRef.current) outerWallMatRef.current.color.set(defaultWallColor);
+
+    // Update room-specific materials
+    Object.keys(roomMatsRef.current).forEach((roomKey) => {
+      const roomColors_ = roomColors[roomKey] || { wall: defaultWallColor, floor: defaultFloorColor };
+      if (roomMatsRef.current[roomKey]) {
+        roomMatsRef.current[roomKey].color.set(roomColors_.wall);
+      }
+    });
+  }, [roomColors, defaultWallColor, defaultFloorColor]);
 
   return (
     <div

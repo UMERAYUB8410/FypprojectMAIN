@@ -142,12 +142,12 @@ export default function Create() {
   const [model3D, setModel3D] = useState(null);
   const [isReflowing, setIsReflowing] = useState(false);
   const [viewMode, setViewMode] = useState("both"); // "2d", "3d", "both"
-  const [wallColor, setWallColor] = useState("#94a3b8");
-  const [floorColor, setFloorColor] = useState("#1a1a2e");
   const floorPlan2DRef = useRef(null);
   const floorPlan3DRef = useRef(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const token = localStorage.getItem("ds_token");
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomColors, setRoomColors] = useState({});
   // --- voice capture state ---
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -311,6 +311,14 @@ export default function Create() {
     };
   }, []);
 
+  // Initialize room colors when floor plan is generated
+  useEffect(() => {
+    if (floorPlan?.floors?.[0]?.rooms) {
+      initializeRoomColors();
+      setSelectedRoom(floorPlan.floors[0].rooms[0]?.roomKey || null);
+    }
+  }, [floorPlan]);
+
   // Close download menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
@@ -376,6 +384,28 @@ export default function Create() {
     }
   }
 
+  function initializeRoomColors() {
+    if (!floorPlan?.floors?.[0]?.rooms) return;
+    const colors = {};
+    floorPlan.floors[0].rooms.forEach((room) => {
+      colors[room.roomKey] = {
+        wall: WALL_PRESETS[0],
+        floor: FLOOR_PRESETS[0]
+      };
+    });
+    setRoomColors(colors);
+  }
+
+  function updateRoomColor(roomKey, type, color) {
+    setRoomColors((prev) => ({
+      ...prev,
+      [roomKey]: {
+        ...prev[roomKey],
+        [type]: color
+      }
+    }));
+  }
+
   function generate2D() {
     return regenerateFloorPlan();
   }
@@ -428,143 +458,190 @@ export default function Create() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 px-6">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6">
-
-        {/* 🧠 PROMPT GUIDE */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">🧠 Prompt Guide</h2>
-          <ul className="text-sm text-white/80 space-y-2 list-disc pl-4">
-            <li>Plot size</li>
-            <li>Floors</li>
-            <li>Bedrooms & bathrooms</li>
-            <li>Kitchen, living area</li>
-            <li>Garage, lawn, balcony</li>
-          </ul>
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-slate-900 text-white pt-24 px-6">
+      {/* Hero Section */}
+      <div className="max-w-4xl mx-auto mb-16">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+            Design Your Dream Home
+          </h1>
+          <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+            Describe your vision and watch AI generate stunning 2D and 3D floor plans instantly
+          </p>
         </div>
 
-        {/* ✍️ PROMPT INPUT */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">✍️ Describe Your House</h2>
+        {/* Main Input Card */}
+        <div className="relative group mb-8">
+          {/* Gradient glow background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition duration-500" />
 
-          <div className="relative">
-            <textarea
-              className="w-full h-40 bg-black/40 border border-white/20 rounded-lg p-3"
-              placeholder="Describe your house..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-
-            {/* mic button (bottom-right) */}
-            <div className="absolute right-3 bottom-3 flex items-center gap-2">
-              {interimTranscript && (
-                <div className="text-xs text-white/60 mr-2">{interimTranscript}</div>
-              )}
-
-              <button
-                onClick={toggleListening}
-                title={listening ? "Stop listening" : "Start listening"}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${listening ? "bg-green-500" : "bg-gray-600"}`}
-              >
-                🎙
-              </button>
+          <div className="relative bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 hover:border-slate-600/80 transition">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-2 h-8 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full" />
+              <label className="text-sm font-semibold text-slate-300 uppercase tracking-widest">Describe Your Vision</label>
             </div>
-          </div>
 
-          {/* Word count indicator */}
-          {(() => {
-            const wc = prompt.trim() ? prompt.trim().split(/\s+/).filter(Boolean).length : 0;
-            const pct = Math.min(wc / PROMPT_MIN_WORDS, 1);
-            const color = wc === 0 ? "bg-white/10" : wc < PROMPT_MIN_WORDS ? "bg-amber-500" : "bg-green-500";
-            const label = wc === 0 ? "Start typing…" : wc < PROMPT_MIN_WORDS ? `${wc} / ${PROMPT_MIN_WORDS} words` : `${wc} words ✓`;
-            const labelColor = wc === 0 ? "text-slate-500" : wc < PROMPT_MIN_WORDS ? "text-amber-400" : "text-green-400";
-            return (
-              <div className="mt-2">
-                <div className="h-1 rounded-full bg-white/10 overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct * 100}%` }} />
-                </div>
-                <p className={`text-xs mt-1 text-right ${labelColor}`}>{label}</p>
+            <div className="relative">
+              <textarea
+                className="w-full h-44 bg-slate-950/50 border border-slate-700/50 rounded-xl p-5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 resize-none transition"
+                placeholder="E.g., 5 marla modern house, double story, 3 bedrooms with attached baths, open kitchen, drawing room, dining area, car porch and lawn..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+
+              {/* Mic button */}
+              <div className="absolute right-4 bottom-4 flex items-center gap-2">
+                {interimTranscript && (
+                  <div className="text-xs text-slate-400 mr-2 px-3 py-1.5 bg-slate-800/50 rounded-lg truncate max-w-[200px]">
+                    {interimTranscript}
+                  </div>
+                )}
+
+                <button
+                  onClick={toggleListening}
+                  title={listening ? "Stop listening" : "Start listening"}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-all ${
+                    listening
+                      ? "bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg shadow-green-500/50"
+                      : "bg-slate-800 hover:bg-slate-700"
+                  }`}
+                >
+                  🎙️
+                </button>
               </div>
-            );
-          })()}
+            </div>
 
-          {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+            {/* Word count indicator */}
+            {(() => {
+              const wc = prompt.trim() ? prompt.trim().split(/\s+/).filter(Boolean).length : 0;
+              const pct = Math.min(wc / PROMPT_MIN_WORDS, 1);
+              const color = wc === 0 ? "bg-slate-700" : wc < PROMPT_MIN_WORDS ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-gradient-to-r from-green-500 to-emerald-500";
+              const label = wc === 0 ? "Start typing…" : wc < PROMPT_MIN_WORDS ? `${wc} / ${PROMPT_MIN_WORDS} words` : `${wc} words ✓`;
+              const labelColor = wc === 0 ? "text-slate-500" : wc < PROMPT_MIN_WORDS ? "text-amber-300" : "text-green-300";
+              return (
+                <div className="mt-4">
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct * 100}%` }} />
+                  </div>
+                  <p className={`text-xs mt-2 text-right font-medium ${labelColor}`}>{label}</p>
+                </div>
+              );
+            })()}
 
-          <button
-            onClick={handleAnalyze}
-            disabled={loading}
-            className="mt-4 w-full bg-green-600 rounded-lg py-2"
-          >
-            {loading ? "Analyzing..." : "Analyze"}
-          </button>
+            {error && (
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-300 text-sm">{error}</p>
+              </div>
+            )}
 
-          {/* ✅ Analysis Result */}
-          {analysis && (
-            <div className="mt-4 text-sm text-green-400">
-              ✅ Analysis Complete
-              <pre className="mt-2 bg-black/40 p-3 rounded text-xs text-white max-h-48 overflow-auto">
+            <button
+              onClick={handleAnalyze}
+              disabled={loading}
+              className="mt-6 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-blue-500/20"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block animate-spin">⚙️</span>
+                  Analyzing with AI...
+                </span>
+              ) : (
+                "Generate Floor Plans"
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Tips */}
+        <div className="grid md:grid-cols-5 gap-3 mb-6">
+          {[
+            { icon: "📐", label: "Plot size" },
+            { icon: "🏢", label: "Floors" },
+            { icon: "🛏️", label: "Bedrooms" },
+            { icon: "🍳", label: "Kitchen" },
+            { icon: "🏠", label: "Special rooms" }
+          ].map((tip, idx) => (
+            <div key={idx} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 text-center hover:bg-slate-800/60 transition">
+              <div className="text-xl mb-1">{tip.icon}</div>
+              <p className="text-xs text-slate-400 font-medium">{tip.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Analysis Result */}
+        {analysis && (
+          <div className="bg-gradient-to-br from-emerald-950/50 to-slate-950/50 border border-emerald-700/50 rounded-2xl p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-2xl">✅</div>
+              <h3 className="text-xl font-semibold text-emerald-300">Analysis Complete</h3>
+            </div>
+
+            <details className="mb-4">
+              <summary className="text-sm text-slate-400 cursor-pointer hover:text-slate-300 transition">
+                View Analysis Data
+              </summary>
+              <pre className="mt-3 bg-black/40 p-4 rounded-lg text-xs text-slate-300 max-h-48 overflow-auto border border-slate-700/30">
                 {JSON.stringify(analysis, null, 2)}
               </pre>
+            </details>
 
-              <button
-                onClick={generate2D}
-                className="mt-4 px-6 py-2 bg-blue-600 rounded-lg"
-              >
-                {isReflowing ? "Updating plan..." : "Generate 2D Floor Plan"}
-              </button>
-              {floorPlan && (
-                <p className="text-xs text-white/60 mt-2">
-                  Drag a room or the entrance marker to position the layout exactly.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+            <button
+              onClick={generate2D}
+              className="w-full md:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold py-2.5 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-cyan-500/20"
+            >
+              {isReflowing ? "Updating plan..." : "Generate 2D Floor Plan"}
+            </button>
+            {floorPlan && (
+              <p className="text-xs text-slate-400 mt-3">
+                💡 Pro tip: Drag rooms and the entrance marker to reposition them exactly as you like.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 🏠 FLOOR PLANS */}
       {floorPlan && (
-        <div className="mt-10">
+        <div className="mt-16 max-w-7xl mx-auto">
           {/* View Mode Tabs & Download */}
-          <div className="flex justify-center items-center gap-4 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8 px-6 py-4 bg-slate-800/30 border border-slate-700/50 rounded-2xl">
             <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode("2d")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                viewMode === "2d"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white/10 text-white/70 hover:bg-white/20"
-              }`}
-            >
-              2D Only
-            </button>
-            <button
-              onClick={() => setViewMode("both")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                viewMode === "both"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white/10 text-white/70 hover:bg-white/20"
-              }`}
-            >
-              2D + 3D
-            </button>
-            <button
-              onClick={() => setViewMode("3d")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                viewMode === "3d"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white/10 text-white/70 hover:bg-white/20"
-              }`}
-            >
-              3D Only
-            </button>
+              <button
+                onClick={() => setViewMode("2d")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  viewMode === "2d"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                📐 2D Only
+              </button>
+              <button
+                onClick={() => setViewMode("both")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  viewMode === "both"
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20"
+                    : "bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                🎨 Both
+              </button>
+              <button
+                onClick={() => setViewMode("3d")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  viewMode === "3d"
+                    ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                    : "bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                🎯 3D Only
+              </button>
             </div>
 
             {/* Download Button */}
             <div className="relative download-menu-container">
               <button
                 onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg hover:shadow-emerald-500/20"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -575,46 +652,46 @@ export default function Create() {
               </button>
 
               {showDownloadMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-lg shadow-xl z-20">
-                  <div className="p-2">
-                    <div className="text-xs text-slate-400 px-2 py-1 font-semibold">2D Formats</div>
+                <div className="absolute right-0 mt-2 w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden backdrop-blur-xl">
+                  <div className="p-3">
+                    <div className="text-xs text-slate-400 px-3 py-2 font-bold uppercase tracking-widest">2D Formats</div>
                     <button
                       onClick={() => {
                         floorPlan2DRef.current?.downloadSVG();
                         setShowDownloadMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-blue-600/30 hover:text-white rounded transition"
                     >
-                      Download SVG
+                      📄 Download SVG
                     </button>
                     <button
                       onClick={() => {
                         floorPlan2DRef.current?.downloadPNG();
                         setShowDownloadMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-blue-600/30 hover:text-white rounded transition"
                     >
-                      Download PNG
+                      🖼️ Download PNG
                     </button>
-                    <div className="border-t border-white/10 my-2"></div>
-                    <div className="text-xs text-slate-400 px-2 py-1 font-semibold">3D Formats</div>
+                    <div className="border-t border-slate-700 my-2"></div>
+                    <div className="text-xs text-slate-400 px-3 py-2 font-bold uppercase tracking-widest">3D Formats</div>
                     <button
                       onClick={() => {
                         floorPlan3DRef.current?.downloadGLTF();
                         setShowDownloadMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-cyan-600/30 hover:text-white rounded transition"
                     >
-                      Download GLTF
+                      🎨 Download GLTF
                     </button>
                     <button
                       onClick={() => {
                         floorPlan3DRef.current?.downloadGLB();
                         setShowDownloadMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-cyan-600/30 hover:text-white rounded transition"
                     >
-                      Download GLB
+                      📦 Download GLB
                     </button>
                   </div>
                 </div>
@@ -623,43 +700,70 @@ export default function Create() {
           </div>
 
           {/* Color Palette */}
-          <div className="flex flex-wrap justify-center gap-8 mb-6 px-5 py-4 bg-white/5 border border-white/10 rounded-2xl max-w-2xl mx-auto">
-            {[
-              { label: "Wall Color", presets: WALL_PRESETS, color: wallColor, setColor: setWallColor },
-              { label: "Floor Color", presets: FLOOR_PRESETS, color: floorColor, setColor: setFloorColor },
-            ].map(({ label, presets, color, setColor }) => (
-              <div key={label} className="flex flex-col gap-2">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {presets.map((preset) => (
+          {floorPlan && (
+            <div className="flex flex-col gap-6 mb-8 px-8 py-6 bg-slate-800/30 border border-slate-700/50 rounded-2xl max-w-4xl mx-auto">
+              {/* Room Selection */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Select Room to Customize</span>
+                <div className="flex flex-wrap gap-2">
+                  {floorPlan.floors[0]?.rooms?.map((room) => (
                     <button
-                      key={preset}
-                      onClick={() => setColor(preset)}
-                      title={preset}
-                      className="w-7 h-7 rounded-full transition-transform hover:scale-110"
-                      style={{
-                        background: preset,
-                        boxShadow: color === preset ? `0 0 0 2px #60a5fa` : "0 0 0 1px rgba(255,255,255,0.15)",
-                      }}
-                    />
+                      key={room.roomKey}
+                      onClick={() => setSelectedRoom(room.roomKey)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                        selectedRoom === room.roomKey
+                          ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20"
+                          : "bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+                      }`}
+                    >
+                      {room.label}
+                    </button>
                   ))}
-                  <label
-                    className="w-7 h-7 rounded-full border-2 border-dashed border-white/30 hover:border-white/60 transition flex items-center justify-center text-white/50 text-sm cursor-pointer"
-                    title="Custom color"
-                  >
-                    +
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      className="sr-only"
-                    />
-                  </label>
-                  <span className="text-xs font-mono text-slate-400">{color}</span>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Per-Room Color Picker */}
+              {selectedRoom && roomColors[selectedRoom] && (
+                <div className="flex flex-wrap justify-center gap-8">
+                  {[
+                    { label: "Wall Color", type: "wall", presets: WALL_PRESETS, color: roomColors[selectedRoom].wall },
+                    { label: "Floor Color", type: "floor", presets: FLOOR_PRESETS, color: roomColors[selectedRoom].floor },
+                  ].map(({ label, type, presets, color }) => (
+                    <div key={label} className="flex flex-col gap-2">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {presets.map((preset) => (
+                          <button
+                            key={preset}
+                            onClick={() => updateRoomColor(selectedRoom, type, preset)}
+                            title={preset}
+                            className="w-7 h-7 rounded-full transition-transform hover:scale-110"
+                            style={{
+                              background: preset,
+                              boxShadow: color === preset ? `0 0 0 2px #60a5fa` : "0 0 0 1px rgba(255,255,255,0.15)",
+                            }}
+                          />
+                        ))}
+                        <label
+                          className="w-7 h-7 rounded-full border-2 border-dashed border-white/30 hover:border-white/60 transition flex items-center justify-center text-white/50 text-sm cursor-pointer"
+                          title="Custom color"
+                        >
+                          +
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => updateRoomColor(selectedRoom, type, e.target.value)}
+                            className="sr-only"
+                          />
+                        </label>
+                        <span className="text-xs font-mono text-slate-400">{color}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Floor Plan Views */}
           <div className={`grid gap-6 ${
@@ -676,8 +780,7 @@ export default function Create() {
                   plan={floorPlan}
                   onRoomDragEnd={handleRoomDragEnd}
                   onEntranceDragEnd={handleEntranceDragEnd}
-                  wallColor={wallColor}
-                  floorColor={floorColor}
+                  roomColors={roomColors}
                 />
               </div>
             )}
@@ -692,8 +795,7 @@ export default function Create() {
                   ref={floorPlan3DRef}
                   plan={floorPlan}
                   model3D={model3D}
-                  wallColor={wallColor}
-                  floorColor={floorColor}
+                  roomColors={roomColors}
                 />
               </div>
             )}
