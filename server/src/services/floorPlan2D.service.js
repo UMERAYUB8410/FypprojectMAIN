@@ -52,13 +52,17 @@ const ROOM_PRIORITY = [
   "Bathroom", "Balcony", "Garage", "Hallway", "Staircase"
 ];
 
+// Room target regions — covers all 4 quadrants of the plot
 const ROOM_REGIONS = {
-  Living:   { x: 0.08, y: 0.08 },
-  Dining:   { x: 0.70, y: 0.60 },
-  Kitchen:  { x: 0.08, y: 0.60 },
-  Bedroom:  { x: 0.65, y: 0.10 },
-  Bathroom: { x: 0.70, y: 0.35 },
-  Balcony:  { x: 0.80, y: 0.08 }
+  Living:    { x: 0.05, y: 0.05 },   // top-left quadrant
+  Kitchen:   { x: 0.05, y: 0.60 },   // bottom-left quadrant
+  Dining:    { x: 0.55, y: 0.60 },   // bottom-right quadrant
+  Bedroom:   { x: 0.55, y: 0.05 },   // top-right quadrant
+  Bathroom:  { x: 0.55, y: 0.35 },   // mid-right (near bedroom)
+  Garage:    { x: 0.05, y: 0.35 },   // mid-left
+  Balcony:   { x: 0.80, y: 0.05 },   // far top-right corner
+  Hallway:   { x: 0.35, y: 0.35 },   // center
+  Staircase: { x: 0.35, y: 0.05 }    // top-center
 };
 
 const ATTACHMENT_RULES = {
@@ -85,6 +89,23 @@ function getRoomSize(type, plotWidth, plotLength) {
 
 function clampValue(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+// ✅ FIX: Spread bonus — rewards distance from center and from other rooms
+//   so rooms distribute across the full plot instead of clustering top-left.
+function getSpreadBonus(candidate, placedRooms, plotWidth, plotLength) {
+  const cx    = plotWidth  / 2;
+  const cy    = plotLength / 2;
+  const roomCx = candidate.x + candidate.width  / 2;
+  const roomCy = candidate.y + candidate.length / 2;
+  const distFromCenter = Math.sqrt((roomCx - cx) ** 2 + (roomCy - cy) ** 2);
+  let minDistFromPlaced = Infinity;
+  placedRooms.forEach(p => {
+    const dx = roomCx - (p.x + p.width  / 2);
+    const dy = roomCy - (p.y + p.length / 2);
+    minDistFromPlaced = Math.min(minDistFromPlaced, Math.sqrt(dx * dx + dy * dy));
+  });
+  return distFromCenter * 0.04 + (isFinite(minDistFromPlaced) ? minDistFromPlaced * 0.06 : 0);
 }
 
 // ✅ FIX: Core overlap check — strict, integer-safe, no tolerance fudge
@@ -136,39 +157,36 @@ function calculateScore(room, candidate, placedRooms, plotWidth, plotLength) {
   const rules = ADJACENCY_RULES[room.type] || { near: [], far: [] };
   let score = 0;
 
+  // Adjacency bonuses
   placedRooms.forEach(placed => {
-    if (rules.near.includes(placed.type)) score += 12;
-    if (rules.far.includes(placed.type))  score -= 12;
+    if (rules.near.includes(placed.type)) score += 15;
+    if (rules.far.includes(placed.type))  score -= 15;
   });
 
-  if (placedRooms.length > 0) {
-    const minDist = Math.min(
-      ...placedRooms.map(p => {
-        const dx = candidate.x - p.x;
-        const dy = candidate.y - p.y;
-        return Math.sqrt(dx * dx + dy * dy);
-      })
-    );
-    score += minDist * 0.08;
-  }
-
+  // ✅ REGION TARGETING — much stronger weight so rooms actually
+  //   reach their target quadrant instead of staying near origin.
   const region = ROOM_REGIONS[room.type];
   if (region) {
     const tx = region.x * (plotWidth  - candidate.width);
     const ty = region.y * (plotLength - candidate.length);
     const dx = candidate.x - tx;
     const dy = candidate.y - ty;
-    score -= Math.sqrt(dx * dx + dy * dy) * 0.06;
+    const distToRegion = Math.sqrt(dx * dx + dy * dy);
+    // Strong pull toward region — was 0.06, now 0.20
+    score -= distToRegion * 0.20;
   }
+
+  // Spread bonus — reward distance from already-placed rooms
+  score += getSpreadBonus(candidate, placedRooms, plotWidth, plotLength);
 
   if (room.type === "Balcony") {
     const onEdge = (
-      candidate.x <= ROOM_PADDING ||
-      candidate.y <= ROOM_PADDING ||
-      candidate.x + candidate.width  >= plotWidth  - ROOM_PADDING ||
-      candidate.y + candidate.length >= plotLength - ROOM_PADDING
+      candidate.x <= ROOM_PADDING + 2 ||
+      candidate.y <= ROOM_PADDING + 2 ||
+      candidate.x + candidate.width  >= plotWidth  - ROOM_PADDING - 2 ||
+      candidate.y + candidate.length >= plotLength - ROOM_PADDING - 2
     );
-    if (onEdge) score += 18;
+    if (onEdge) score += 20;
   }
 
   return score;
@@ -212,11 +230,14 @@ function findBestPosition(room, placedRooms, plotWidth, plotLength, gridSize = 2
   const attachedPos = findAttachedPosition(room, placedRooms, plotWidth, plotLength);
   if (attachedPos) return attachedPos;
 
+  // ✅ FIX: Dynamic grid — finer on large plots so rooms reach target regions
+  const dynamicGrid = Math.max(10, Math.min(gridSize, Math.round(Math.min(plotWidth, plotLength) / 30)));
+
   let bestScore = -Infinity;
   let bestPos   = null;
 
-  for (let y = ROOM_PADDING; y <= plotLength - size.length - ROOM_PADDING; y += gridSize) {
-    for (let x = ROOM_PADDING; x <= plotWidth - size.width - ROOM_PADDING; x += gridSize) {
+  for (let y = ROOM_PADDING; y <= plotLength - size.length - ROOM_PADDING; y += dynamicGrid) {
+    for (let x = ROOM_PADDING; x <= plotWidth - size.width - ROOM_PADDING; x += dynamicGrid) {
       const candidate = { x, y, width: size.width, length: size.length };
       if (!isValidRoomPlacement(candidate, placedRooms, plotWidth, plotLength)) continue;
       const score = calculateScore(room, candidate, placedRooms, plotWidth, plotLength);
