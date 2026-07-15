@@ -1,24 +1,19 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import exploreDesigns from "../data/exploreDesigns";
 
 export default function Explore() {
-  const [samples, setSamples] = useState([]);
   const navigate = useNavigate();
+  const samples = exploreDesigns.slice(0, 3);
 
-  useEffect(() => {
-    const dummy = [
-      { id: 1, title: "Modern Villa", img: "https://picsum.photos/400/250?random=1" },
-      { id: 2, title: "Luxury Apartment", img: "https://picsum.photos/400/250?random=2" },
-      { id: 3, title: "Cozy Cottage", img: "https://picsum.photos/400/250?random=3" },
-    ];
-    setSamples(dummy);
-  }, []);
+  function handleSelect(design) {
+    navigate("/create", { state: { prefillPrompt: design.prompt } });
+  }
 
   return (
     <section id="explore" className="relative py-24">
       <div className="container mx-auto px-4">
         <div className="relative rounded-3xl p-10 bg-white/10 border border-white/20 backdrop-blur-xl overflow-hidden shadow-2xl">
-          
+
           {/* 🌧️ Glass + Rain overlay */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="w-full h-full bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.15),transparent_70%)] backdrop-blur-md" />
@@ -35,13 +30,18 @@ export default function Explore() {
           {/* 3 sample previews */}
           <div className="grid gap-6 md:grid-cols-3 relative z-10">
             {samples.map((s) => (
-              <div
+              <button
                 key={s.id}
-                className="rounded-2xl overflow-hidden bg-white/5 border border-white/20 hover:bg-white/10 transition"
+                onClick={() => handleSelect(s)}
+                className="text-left rounded-2xl overflow-hidden bg-white/5 border border-white/20 hover:bg-white/10 hover:border-white/40 transition cursor-pointer"
+                title="Use this prompt in Create"
               >
                 <img src={s.img} alt={s.title} className="w-full h-48 object-cover" />
-                <div className="p-4 text-center text-white drop-shadow">{s.title}</div>
-              </div>
+                <div className="p-4 text-white drop-shadow">
+                  <div className="font-semibold">{s.title}</div>
+                  <div className="text-xs text-white/60 mt-1">{s.tag}</div>
+                </div>
+              </button>
             ))}
           </div>
 

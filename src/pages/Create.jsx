@@ -110,7 +110,7 @@
 
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../utils/api";
 import FloorPlan2D from "../components/FloorPlan2D";
 import FloorPlan3D from "../components/FloorPlan3D";
@@ -132,8 +132,9 @@ function validatePrompt(text) {
 
 export default function Create() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(location.state?.prefillPrompt || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState(null);
@@ -161,6 +162,13 @@ export default function Create() {
     const token = localStorage.getItem("token");
     if (!token) navigate("/");
   }, [navigate]);
+
+  // Clear prefill state so refresh/back doesn't keep re-applying it
+  useEffect(() => {
+    if (location.state?.prefillPrompt) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, []);
 
   // 🧠 AI ANALYZE
   async function handleAnalyze() {
