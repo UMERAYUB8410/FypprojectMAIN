@@ -77,6 +77,7 @@ import About from "./sections/About";
 import Create from "./pages/Create";
 import Profile from "./pages/Profile";
 import History from "./pages/History";
+import ExplorePage from "./pages/ExplorePage";
 
 export default function App() {
   const navigate = useNavigate();
@@ -140,6 +141,7 @@ export default function App() {
         <Route path="/create" element={<Create />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/history" element={<History />} />
+        <Route path="/explore" element={<ExplorePage />} />
       </Routes>
 
       <Footer />
