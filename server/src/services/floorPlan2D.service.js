@@ -91,6 +91,58 @@ function clampValue(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+// Splits a straight wall segment into one-or-more shorter segments so that
+// any door sitting along it becomes an actual empty gap instead of a solid
+// line with a door icon drawn on top. Returns [wall] unchanged when no door
+// falls on this segment.
+function splitWallForDoors(wall, doors) {
+  const isHorizontal = wall.y1 === wall.y2;
+  const isVertical   = wall.x1 === wall.x2;
+  if (!isHorizontal && !isVertical) return [wall];
+
+  const axisStart  = isHorizontal ? Math.min(wall.x1, wall.x2) : Math.min(wall.y1, wall.y2);
+  const axisEnd    = isHorizontal ? Math.max(wall.x1, wall.x2) : Math.max(wall.y1, wall.y2);
+  const fixedCoord = isHorizontal ? wall.y1 : wall.x1;
+
+  const gaps = doors
+    .filter(door => {
+      if (isHorizontal && door.orientation !== "horizontal") return false;
+      if (isVertical   && door.orientation !== "vertical")   return false;
+      const doorFixed = isHorizontal ? door.y : door.x;
+      return Math.abs(doorFixed - fixedCoord) < 3;
+    })
+    .map(door => {
+      const center = isHorizontal ? door.x : door.y;
+      const half   = (isHorizontal ? door.width : door.height) / 2;
+      return {
+        start: clampValue(center - half, axisStart, axisEnd),
+        end:   clampValue(center + half, axisStart, axisEnd)
+      };
+    })
+    .filter(gap => gap.end - gap.start > 1)
+    .sort((a, b) => a.start - b.start);
+
+  if (gaps.length === 0) return [wall];
+
+  const segments = [];
+  let cursor = axisStart;
+  gaps.forEach(gap => {
+    if (gap.start - cursor > 1) {
+      segments.push(isHorizontal ? { ...wall, x1: cursor, x2: gap.start } : { ...wall, y1: cursor, y2: gap.start });
+    }
+    cursor = Math.max(cursor, gap.end);
+  });
+  if (axisEnd - cursor > 1) {
+    segments.push(isHorizontal ? { ...wall, x1: cursor, x2: axisEnd } : { ...wall, y1: cursor, y2: axisEnd });
+  }
+  return segments;
+}
+
+function splitWallsForDoors(walls, doors) {
+  if (!doors.length) return walls;
+  return walls.flatMap(wall => splitWallForDoors(wall, doors));
+}
+
 // ✅ FIX: Spread bonus — rewards distance from center and from other rooms
 //   so rooms distribute across the full plot instead of clustering top-left.
 function getSpreadBonus(candidate, placedRooms, plotWidth, plotLength) {
@@ -479,6 +531,75 @@ function buildDoors(rooms) {
   return doors;
 }
 
+function getSingleRoomDoorType(type) {
+  if (type === "Bathroom") return "bathroom";
+  if (type === "Bedroom")  return "standard";
+  return "main";
+}
+
+// Guarantees every room has at least one door. The pairwise adjacency pass
+// above only connects rooms found touching within a small tolerance, so a
+// room placed with no touching neighbor (or one whose shared edge falls
+// just outside that tolerance) would otherwise end up a fully sealed box.
+// For each such room, this opens a door on whichever of its own walls faces
+// the rest of the house (preferring an already-connected room so doors
+// chain back toward the main living space), skipping exterior/boundary
+// walls. Mutates `doors` in place.
+function ensureRoomConnectivity(rooms, doors, plotWidth, plotLength) {
+  if (rooms.length < 2) return;
+
+  const connected = new Set();
+  doors.forEach(door => (door.roomKeys || []).forEach(key => connected.add(key)));
+
+  const isolated = rooms.filter(room => !connected.has(room.roomKey));
+
+  isolated.forEach(room => {
+    const others = rooms.filter(r => r.roomKey !== room.roomKey);
+    if (others.length === 0) return;
+
+    const targets = others.filter(r => connected.has(r.roomKey));
+    const pool = targets.length > 0 ? targets : others;
+    const centroid = pool.reduce(
+      (acc, r) => ({ x: acc.x + (r.x + r.width / 2), y: acc.y + (r.y + r.length / 2) }),
+      { x: 0, y: 0 }
+    );
+    centroid.x /= pool.length;
+    centroid.y /= pool.length;
+
+    const edges = [
+      { orientation: "vertical", fixed: room.x, from: room.y, to: room.y + room.length,
+        exterior: Math.abs(room.x - ROOM_PADDING) < 2, mid: { x: room.x, y: room.y + room.length / 2 } },
+      { orientation: "vertical", fixed: room.x + room.width, from: room.y, to: room.y + room.length,
+        exterior: Math.abs(room.x + room.width - (plotWidth - ROOM_PADDING)) < 2, mid: { x: room.x + room.width, y: room.y + room.length / 2 } },
+      { orientation: "horizontal", fixed: room.y, from: room.x, to: room.x + room.width,
+        exterior: Math.abs(room.y - ROOM_PADDING) < 2, mid: { x: room.x + room.width / 2, y: room.y } },
+      { orientation: "horizontal", fixed: room.y + room.length, from: room.x, to: room.x + room.width,
+        exterior: Math.abs(room.y + room.length - (plotLength - ROOM_PADDING)) < 2, mid: { x: room.x + room.width / 2, y: room.y + room.length } }
+    ];
+
+    let best = null;
+    let bestScore = -Infinity;
+    edges.forEach(edge => {
+      if (edge.to - edge.from < 20) return;
+      const dist = Math.hypot(edge.mid.x - centroid.x, edge.mid.y - centroid.y);
+      const score = (edge.exterior ? -100000 : 0) - dist;
+      if (score > bestScore) { bestScore = score; best = edge; }
+    });
+    if (!best) return;
+
+    const doorSpan = Math.min(getDoorWidth(room.type), best.to - best.from - 4);
+    if (doorSpan < 10) return;
+    const center = clampValue((best.from + best.to) / 2, best.from + doorSpan / 2, best.to - doorSpan / 2);
+
+    doors.push(
+      best.orientation === "vertical"
+        ? { orientation: "vertical", x: best.fixed, y: center, width: 4, height: doorSpan, roomKeys: [room.roomKey], doorType: getSingleRoomDoorType(room.type) }
+        : { orientation: "horizontal", x: center, y: best.fixed, width: doorSpan, height: 4, roomKeys: [room.roomKey], doorType: getSingleRoomDoorType(room.type) }
+    );
+    connected.add(room.roomKey);
+  });
+}
+
 function buildWindows(rooms, plotWidth, plotLength) {
   const windows     = [];
   const windowSize  = 24;
@@ -587,8 +708,9 @@ function buildFloorPlanModel(analysis) {
   const floors = [];
   for (let floor = 1; floor <= totalFloors; floor++) {
     const placedRooms = placeRooms(rooms, floor, plotWidth, plotLength, roomPositions);
-    const walls       = buildWallSegments(placedRooms, plotWidth, plotLength);
     const doors       = buildDoors(placedRooms);
+    ensureRoomConnectivity(placedRooms, doors, plotWidth, plotLength);
+    const walls       = splitWallsForDoors(buildWallSegments(placedRooms, plotWidth, plotLength), doors);
     const windows     = buildWindows(placedRooms, plotWidth, plotLength);
     const floorLabel  = totalFloors > 1 ? `Floor ${floor}` : "Ground Floor";
 

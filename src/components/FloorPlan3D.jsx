@@ -2,7 +2,7 @@ import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter";
-import { buildRenderPlan } from "../utils/floorPlanLayout";
+import { buildRenderPlan, splitWallForDoors } from "../utils/floorPlanLayout";
 
 const ROOM_COLORS = {
   Bedroom: 0x1f2933,
@@ -89,6 +89,10 @@ const FloorPlan3D = forwardRef(({ model3D, plan, roomColors = {} }, ref) => {
     const container = containerRef.current;
     const floor = plan.floors[0];
     const { width: floorWidth, length: floorLength, rooms, entrance } = floor;
+
+    // Door/window positions derived from the same layout logic as 2D, computed
+    // up front so room walls can be split into separate meshes around doors.
+    const { windows, doors } = buildRenderPlan(rooms, floorWidth, floorLength);
 
     // Scene setup
     const scene = new THREE.Scene();
@@ -193,14 +197,17 @@ const FloorPlan3D = forwardRef(({ model3D, plan, roomColors = {} }, ref) => {
       });
       roomMatsRef.current[room.roomKey] = roomWallMat;
 
+      // Each side is split around any door that falls on it, so a doorway
+      // becomes an actual gap between two separate wall meshes in 3D —
+      // mirroring how the 2D wall line is split.
       // North wall
-      createWall(scene, room.x, room.y, room.width, WALL_HEIGHT, roomWallMat, "horizontal");
+      createWallWithDoorGaps(scene, room.x, room.y, room.x + room.width, room.y, WALL_HEIGHT, roomWallMat, doors);
       // South wall
-      createWall(scene, room.x, room.y + room.length, room.width, WALL_HEIGHT, roomWallMat, "horizontal");
+      createWallWithDoorGaps(scene, room.x, room.y + room.length, room.x + room.width, room.y + room.length, WALL_HEIGHT, roomWallMat, doors);
       // West wall
-      createWall(scene, room.x, room.y, room.length, WALL_HEIGHT, roomWallMat, "vertical");
+      createWallWithDoorGaps(scene, room.x, room.y, room.x, room.y + room.length, WALL_HEIGHT, roomWallMat, doors);
       // East wall
-      createWall(scene, room.x + room.width, room.y, room.length, WALL_HEIGHT, roomWallMat, "vertical");
+      createWallWithDoorGaps(scene, room.x + room.width, room.y, room.x + room.width, room.y + room.length, WALL_HEIGHT, roomWallMat, doors);
 
       // Room label (3D text sprite)
       const labelSprite = createTextSprite(room.label, {
@@ -389,9 +396,6 @@ const FloorPlan3D = forwardRef(({ model3D, plan, roomColors = {} }, ref) => {
     createWall(scene, 0, 0, floorLength, WALL_HEIGHT, outerWallMat, "vertical", 4);
     // East outer wall
     createWall(scene, floorWidth, 0, floorLength, WALL_HEIGHT, outerWallMat, "vertical", 4);
-
-    // Windows and doors (positions derived from the same layout logic as 2D)
-    const { windows, doors } = buildRenderPlan(rooms, floorWidth, floorLength);
 
     const WIN_H = WALL_HEIGHT * 0.4;
     const WIN_CENTER_Y = WALL_HEIGHT * 0.55;
@@ -585,6 +589,25 @@ const FloorPlan3D = forwardRef(({ model3D, plan, roomColors = {} }, ref) => {
 FloorPlan3D.displayName = "FloorPlan3D";
 
 export default FloorPlan3D;
+
+// Builds a wall from (x1,z1) to (x2,z2), splitting it into separate meshes
+// around any door that falls along it so the doorway is an empty opening
+// rather than a solid box with a door panel overlaid on top.
+function createWallWithDoorGaps(scene, x1, z1, x2, z2, height, material, doors, thickness = WALL_THICKNESS) {
+  const orientation = z1 === z2 ? "horizontal" : "vertical";
+  const segments = splitWallForDoors({ x1, y1: z1, x2, y2: z2 }, doors);
+  segments.forEach((seg) => {
+    if (orientation === "horizontal") {
+      const length = seg.x2 - seg.x1;
+      if (length <= 0) return;
+      createWall(scene, seg.x1, seg.y1, length, height, material, "horizontal", thickness);
+    } else {
+      const length = seg.y2 - seg.y1;
+      if (length <= 0) return;
+      createWall(scene, seg.x1, seg.y1, length, height, material, "vertical", thickness);
+    }
+  });
+}
 
 function createWall(scene, x, z, length, height, material, orientation, thickness = WALL_THICKNESS) {
   let geometry, position;
