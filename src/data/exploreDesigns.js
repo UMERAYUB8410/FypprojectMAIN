@@ -1,53 +1,56 @@
 // Curated sample designs shown in the Explore sections.
 // Clicking a card sends `prompt` to /create so the textarea is prefilled.
+// Prompts follow a fixed, parser-friendly format:
+// "{size} square yard {single/double}-floor house with {n} bedrooms,
+//  {n} bathroom, {n} kitchen, {n} living room, {n} garage, {n} dining room {style} style"
 const exploreDesigns = [
   {
     id: 1,
-    title: "Modern 5 Marla Home",
-    tag: "5 Marla • Modern",
+    title: "Modern 120 Sq Yd House",
+    tag: "120 Sq Yd • Modern",
     img: "https://picsum.photos/seed/dreamsketch-1/400/250",
     prompt:
-      "5 marla modern house, double story, 3 bedrooms with attached baths, open kitchen, drawing room, dining area, car porch and small lawn."
+      "120 square yard single-floor house with 2 bedrooms, 1 bathroom, 1 kitchen, 1 living room, 1 garage, 1 dining room modern style"
   },
   {
     id: 2,
-    title: "Luxury 1 Kanal Villa",
-    tag: "1 Kanal • Luxury",
+    title: "Minimalist 150 Sq Yd House",
+    tag: "150 Sq Yd • Minimalist",
     img: "https://picsum.photos/seed/dreamsketch-2/400/250",
     prompt:
-      "1 kanal luxury villa, double story, 5 bedrooms with attached baths, separate drawing and dining rooms, modern kitchen, home theater, gym, servant quarter and large lawn."
+      "150 square yard single-floor house with 3 bedrooms, 2 bathroom, 1 kitchen, 1 living room, 1 garage, 1 dining room minimalist style"
   },
   {
     id: 3,
-    title: "Cozy 10 Marla Cottage",
-    tag: "10 Marla • Cozy",
+    title: "Traditional 200 Sq Yd Home",
+    tag: "200 Sq Yd • Traditional",
     img: "https://picsum.photos/seed/dreamsketch-3/400/250",
     prompt:
-      "10 marla cozy single story cottage, 3 bedrooms with attached baths, open kitchen, spacious lounge, front porch, small garden and covered parking."
+      "200 square yard double-floor house with 3 bedrooms, 2 bathroom, 1 kitchen, 1 living room, 1 garage, 1 dining room traditional style"
   },
   {
     id: 4,
-    title: "Minimalist 7 Marla House",
-    tag: "7 Marla • Minimalist",
+    title: "Modern 250 Sq Yd Home",
+    tag: "250 Sq Yd • Modern",
     img: "https://picsum.photos/seed/dreamsketch-4/400/250",
     prompt:
-      "7 marla minimalist double story house, 4 bedrooms with attached baths, open plan kitchen and living area, study room, balcony and compact car porch."
+      "250 square yard double-floor house with 4 bedrooms, 3 bathroom, 1 kitchen, 1 living room, 1 garage, 1 dining room modern style"
   },
   {
     id: 5,
-    title: "Contemporary 12 Marla Home",
-    tag: "12 Marla • Contemporary",
+    title: "Modern 300 Sq Yd Villa",
+    tag: "300 Sq Yd • Modern",
     img: "https://picsum.photos/seed/dreamsketch-5/400/250",
     prompt:
-      "12 marla contemporary double story home, 4 bedrooms with attached baths, formal drawing room, family lounge, modern open kitchen, terrace and two car porch."
+      "300 square yard double-floor house with 5 bedrooms, 4 bathroom, 1 kitchen, 1 living room, 2 garage, 1 dining room modern style"
   },
   {
     id: 6,
-    title: "Compact 3 Marla Starter Home",
-    tag: "3 Marla • Compact",
+    title: "Traditional 500 Sq Yd Villa",
+    tag: "500 Sq Yd • Traditional",
     img: "https://picsum.photos/seed/dreamsketch-6/400/250",
     prompt:
-      "3 marla compact double story house, 2 bedrooms with attached baths, small open kitchen, living area, staircase lobby and single car porch."
+      "500 square yard double-floor house with 6 bedrooms, 5 bathroom, 1 kitchen, 1 living room, 2 garage, 1 dining room traditional style"
   }
 ];
 

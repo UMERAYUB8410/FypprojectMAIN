@@ -27,7 +27,7 @@ export function generate3DFloorPlan(plan) {
   }
 
   const floor = plan.floors[0];
-  const { rooms, width: floorWidth, length: floorLength, entrance } = floor;
+  const { rooms, width: floorWidth, length: floorLength, entrance, doors = [] } = floor;
 
   const model = {
     dimensions: {
@@ -51,7 +51,7 @@ export function generate3DFloorPlan(plan) {
       length: room.length,
       height: WALL_HEIGHT,
       color: ROOM_COLORS_3D[room.type] || 0x64748b,
-      walls: generateRoomWalls(room, floorWidth, floorLength)
+      walls: generateRoomWalls(room, floorWidth, floorLength, doors)
     })),
     walls: generateOuterWalls(floorWidth, floorLength),
     entrance: entrance ? {
@@ -68,7 +68,59 @@ export function generate3DFloorPlan(plan) {
   return model;
 }
 
-function generateRoomWalls(room, floorWidth, floorLength) {
+function clampValue(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+// Splits a straight wall (start/end given as {x,z}) into shorter segments
+// around any door that falls along it, so the doorway becomes a real gap
+// between two separate wall meshes instead of a solid box with a door panel
+// merely placed in front of it.
+function splitWallSegmentForDoors(wall, doors) {
+  const { start, end } = wall;
+  const isHorizontal = start.z === end.z;
+  const isVertical    = start.x === end.x;
+  if (!isHorizontal && !isVertical) return [wall];
+
+  const axisStart  = isHorizontal ? Math.min(start.x, end.x) : Math.min(start.z, end.z);
+  const axisEnd    = isHorizontal ? Math.max(start.x, end.x) : Math.max(start.z, end.z);
+  const fixedCoord = isHorizontal ? start.z : start.x;
+
+  const gaps = doors
+    .filter(door => {
+      if (isHorizontal && door.orientation !== "horizontal") return false;
+      if (isVertical   && door.orientation !== "vertical")   return false;
+      const doorFixed = isHorizontal ? door.y : door.x;
+      return Math.abs(doorFixed - fixedCoord) < 3;
+    })
+    .map(door => {
+      const center = isHorizontal ? door.x : door.y;
+      const half   = (isHorizontal ? door.width : door.height) / 2;
+      return {
+        start: clampValue(center - half, axisStart, axisEnd),
+        end:   clampValue(center + half, axisStart, axisEnd)
+      };
+    })
+    .filter(gap => gap.end - gap.start > 1)
+    .sort((a, b) => a.start - b.start);
+
+  if (gaps.length === 0) return [wall];
+
+  const buildSubWall = (from, to) => isHorizontal
+    ? { ...wall, start: { ...wall.start, x: from }, end: { ...wall.end, x: to } }
+    : { ...wall, start: { ...wall.start, z: from }, end: { ...wall.end, z: to } };
+
+  const segments = [];
+  let cursor = axisStart;
+  gaps.forEach(gap => {
+    if (gap.start - cursor > 1) segments.push(buildSubWall(cursor, gap.start));
+    cursor = Math.max(cursor, gap.end);
+  });
+  if (axisEnd - cursor > 1) segments.push(buildSubWall(cursor, axisEnd));
+  return segments;
+}
+
+function generateRoomWalls(room, floorWidth, floorLength, doors = []) {
   const walls = [];
   const { x, y, width, length } = room;
   const padding = 14;
@@ -109,7 +161,7 @@ function generateRoomWalls(room, floorWidth, floorLength) {
     isExterior: Math.abs(x + width - (floorWidth - padding)) < 2
   });
 
-  return walls;
+  return walls.flatMap(wall => splitWallSegmentForDoors(wall, doors));
 }
 
 function generateOuterWalls(width, length) {
