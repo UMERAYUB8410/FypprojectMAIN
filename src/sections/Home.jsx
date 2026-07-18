@@ -34,7 +34,7 @@ export default function Home({ onCreate }) {
           DreamSketch AI
         </h1>
         <p className="mt-5 text-lg text-gray-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-          Lorem ipsum tagline...
+          Unleash your creativity with AI-powered design generation. Create stunning visuals effortlessly.
         </p>
         <button
           onClick={onCreate}

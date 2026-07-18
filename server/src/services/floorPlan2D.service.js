@@ -1,3 +1,4 @@
+
 // ✅ BUG 4 FIX: Sanitize SVG output
 function sanitizeSVG(svg) {
   return svg.replace(/<script[^>]*>.*?<\/script>/gi, '')
